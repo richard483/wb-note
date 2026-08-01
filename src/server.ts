@@ -28,8 +28,10 @@ function shutdown(signal: string): void {
 
   console.log(`${signal} received, shutting down...`);
 
-  // Stop accepting new connections. Existing in-flight requests still finish.
+  // Stop accepting new connections. Existing in-flight requests still finish,
+  // and the callback fires only once every socket is gone.
   server.close((err) => {
+    clearInterval(sweepIdle);
     if (err) {
       console.error('Error during shutdown:', err);
       process.exit(1);
@@ -39,16 +41,21 @@ function shutdown(signal: string): void {
     process.exit(0);
   });
 
-  // Node >= 19 closes idle keep-alive sockets as part of `close()`, so only
-  // connections with a request still in flight can hold shutdown open. Those
-  // get a deadline, then go away by force.
+  // `close()` drops sockets that are *already* idle, but not ones that go idle
+  // later — a keep-alive client whose in-flight request has just finished parks
+  // its socket and holds the server open until keepAliveTimeout. So sweep
+  // repeatedly rather than once, or a graceful stop turns into a timeout.
+  server.closeIdleConnections();
+  const sweepIdle = setInterval(() => server.closeIdleConnections(), 250);
+
   const forceExit = setTimeout(() => {
     console.error('Shutdown timed out, forcing remaining connections closed');
     server.closeAllConnections();
     process.exit(1);
   }, env.shutdownTimeoutMs);
 
-  // Don't let the timer itself hold the event loop open.
+  // Neither timer should hold the event loop open on its own.
+  sweepIdle.unref();
   forceExit.unref();
 }
 

@@ -65,6 +65,18 @@ PID 1 also gets no default signal handlers from the kernel, so the explicit
 container stoppable at all — without it the process would simply ignore the
 signal.
 
+On `SIGTERM` the server stops listening immediately — new connections get
+`ECONNREFUSED` — while requests already in flight are allowed to finish. Once
+they drain the process exits `0`. Anything still running when
+`SHUTDOWN_TIMEOUT_MS` expires is force-closed and the process exits `1`.
+
+One subtlety worth keeping: `close()` drops sockets that are *already* idle, but
+not ones that go idle afterwards. A keep-alive client whose request just
+finished parks its socket and holds the server open until `keepAliveTimeout`
+(measured: the close callback never fired within 6s). Hence the repeating
+`closeIdleConnections()` sweep in [src/server.ts](src/server.ts) — a single call
+at shutdown time is not enough.
+
 Note that `docker stop` defaults to a 10s grace period and `SHUTDOWN_TIMEOUT_MS`
 also defaults to 10s, so they expire together. Give the app the smaller number:
 
