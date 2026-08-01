@@ -41,9 +41,13 @@ export const env = {
   /** How long to let in-flight requests finish before forcing exit. */
   shutdownTimeoutMs: int('SHUTDOWN_TIMEOUT_MS', 10_000, 0, 120_000),
 
-  // When redis/kafka land, add them here — e.g.
-  //   redisUrl: required('REDIS_URL'),
-  //   kafkaBrokers: str('KAFKA_BROKERS', 'localhost:9092').split(','),
+  databaseUrl: required('DATABASE_URL'),
+  redisUrl: required('REDIS_URL'),
+  kafkaBrokers: required('KAFKA_BROKERS').split(','),
+  kafkaTopic: str('KAFKA_TOPIC', 'notes-event'),
+  kafkaGroupId: str('KAFKA_GROUP_ID', 'notes-flush-worker'),
+  noteCacheTtlMs: int('NOTE_CACHE_TTL_MS', 60_000, 0, 3_600_000),
+
 } as const;
 
 export type Env = typeof env;

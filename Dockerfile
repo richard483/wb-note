@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-ARG NODE_VERSION=24-alpine
+ARG NODE_VERSION=24-slim
 
 # ---- deps: full install, used only to compile -------------------------------
 FROM node:${NODE_VERSION} AS deps

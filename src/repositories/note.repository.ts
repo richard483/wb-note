@@ -1,33 +1,48 @@
-/**
- * Data access. The only layer that knows *where* notes live.
- *
- * Today: an in-memory Map, so the rest of the app is runnable.
- * Later: redis as the write-back cache + kafka to publish the flush events.
- * Swapping the internals must not require touching the service layer — keep the
- * method signatures speaking in domain types (`Note`), never in storage types.
- */
+import { env } from "../config/env.ts";
+import { producer } from "../infra/kafka.ts";
+import type { Note } from "../models/note.ts";
+import { noteCacheRepository as cache } from './note.cache.repository.ts';
 
-import type { Note } from '../models/note.ts';
+export type NoteEvent =
+  | { type: 'note.upserted'; note: Note }
+  | { type: 'note.deleted'; id: string };
 
-const store = new Map<string, Note>();
+async function publish(event: NoteEvent, key: string): Promise<void> {
+  await producer.send({
+    topic: env.kafkaTopic,
+    messages: [
+      {
+        key,
+        value: JSON.stringify(event),
+      },
+    ],
+  });
+}
 
 export const noteRepository = {
   async findAll(): Promise<Note[]> {
-    return [...store.values()];
+    return cache.list();
   },
 
   async findById(id: string): Promise<Note | undefined> {
-    return store.get(id);
+    return cache.get(id);
   },
 
   async save(note: Note): Promise<Note> {
-    store.set(note.id, note);
+    await publish({ type: 'note.upserted', note }, note.id);
+    await cache.save(note);
     return note;
   },
 
   async deleteById(id: string): Promise<boolean> {
-    return store.delete(id);
+    const existing = await cache.get(id);
+    if (!existing) return false;
+
+    await publish({ type: 'note.deleted', id }, id);
+    await cache.remove(id);
+    return true;
   },
 };
+
 
 export type NoteRepository = typeof noteRepository;
