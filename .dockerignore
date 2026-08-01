@@ -1,0 +1,21 @@
+# Keep the build context small and prevent host artifacts leaking into layers.
+node_modules
+dist
+coverage
+
+.git
+.gitignore
+.github
+
+.env
+.env.*
+!.env.example
+
+*.log
+npm-debug.log*
+
+Dockerfile
+.dockerignore
+README.md
+.prettierrc.json
+.DS_Store
