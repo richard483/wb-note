@@ -5,7 +5,7 @@
   "license": "ISC",
   "author": "Richard \"nephren\" William",
   "type": "module",
-  "main": "index.ts",
+  "main": "/src/app.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
