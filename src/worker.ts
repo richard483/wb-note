@@ -7,8 +7,12 @@
  */
 
 import { closeDatabase } from './infra/db.ts';
+import { connectProducer, disconnectProducer } from './infra/kafka.ts';
 import { startNoteFlushWorker, stopNoteFlushWorker } from './workers/note-flush.ts';
 
+// The flush loop produces to the DLT, so this process needs a producer too —
+// the API's connection isn't shared across processes.
+await connectProducer();
 await startNoteFlushWorker();
 
 let shuttingDown = false;
@@ -21,6 +25,7 @@ async function shutdown(signal: string): Promise<void> {
 
   try {
     await stopNoteFlushWorker();
+    await disconnectProducer();
     await closeDatabase();
   } catch (err) {
     console.error('Error during shutdown:', err);

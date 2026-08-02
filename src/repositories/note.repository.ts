@@ -6,7 +6,9 @@ import { noteMemoryRepository } from "./note.memory.repository.ts";
 
 export type NoteEvent =
   | { type: 'note.upserted'; note: Note }
-  | { type: 'note.deleted'; id: string };
+  // occurredAt makes a replayed delete safe: without it, re-running an old
+  // delete would remove a note that has since been recreated or edited.
+  | { type: 'note.deleted'; id: string; occurredAt: string };
 
 async function publish(event: NoteEvent, key: string): Promise<void> {
   await producer.send({
@@ -39,7 +41,7 @@ export const noteDbCacheRepository = {
     const existing = await cache.get(id);
     if (!existing) return false;
 
-    await publish({ type: 'note.deleted', id }, id);
+    await publish({ type: 'note.deleted', id, occurredAt: new Date().toISOString() }, id);
     await cache.remove(id);
     return true;
   },

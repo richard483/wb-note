@@ -1,4 +1,4 @@
-import { desc, eq, lte, sql } from 'drizzle-orm';
+import { and, desc, eq, lte, sql } from 'drizzle-orm';
 import { db } from '../infra/db.ts';
 import { notes, type NoteRow } from '../infra/schema.ts';
 import type { Note } from '../models/note.ts';
@@ -43,7 +43,18 @@ export const noteDbRepository = {
       });
   },
 
-  async deleteById(id: string): Promise<void> {
-    await db.delete(notes).where(eq(notes.id, id));
+  /**
+   * `occurredAt` bounds the delete to rows not modified since the event was
+   * produced — the mirror of the upsert's `setWhere` guard. Without it a
+   * replayed (or out-of-order) delete would remove a note that was recreated
+   * afterwards. Omit it only for an unconditional delete.
+   */
+  async deleteById(id: string, occurredAt?: string): Promise<void> {
+    const guard =
+      occurredAt === undefined
+        ? eq(notes.id, id)
+        : and(eq(notes.id, id), lte(notes.updatedAt, new Date(occurredAt)));
+
+    await db.delete(notes).where(guard);
   },
 };

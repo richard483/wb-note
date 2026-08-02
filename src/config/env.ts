@@ -57,6 +57,18 @@ export const env = {
   kafkaGroupId: str('KAFKA_GROUP_ID', 'notes-flush-worker'),
   embedWorker: bool('EMBED_WORKER', true),
 
+  /** Where messages land once they've exhausted retries and are unprocessable. */
+  kafkaDltTopic: str('KAFKA_DLT_TOPIC', 'notes-event.dlt'),
+  /** Consumer group for the one-shot DLT replay command. */
+  kafkaDltGroupId: str('KAFKA_DLT_GROUP_ID', 'notes-dlt-replay'),
+
+  /** Attempts per message before giving up (1 = no retry). */
+  flushMaxAttempts: int('FLUSH_MAX_ATTEMPTS', 5, 1, 20),
+  /** Base for exponential backoff: delay = base * 2^(attempt-1). */
+  flushRetryBaseMs: int('FLUSH_RETRY_BASE_MS', 200, 10, 10_000),
+  /** Replay exits after this long with no new DLT messages. */
+  dltReplayIdleMs: int('DLT_REPLAY_IDLE_MS', 5_000, 1_000, 60_000),
+
 } as const;
 
 export type Env = typeof env;
