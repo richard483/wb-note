@@ -1,39 +1,35 @@
-import { env } from "./config/env.ts";
-import { closeDatabase } from "./infra/db.ts";
-import { createConsumer } from "./infra/kafka.ts";
-import { noteDbRepository } from "./repositories/note.db.repository.ts";
-import type { NoteEvent } from "./repositories/note.repository.ts";
+/**
+ * Standalone worker entrypoint — the flush loop as its own process.
+ *
+ * Use this when the API and the worker are separate Deployments, so they can be
+ * scaled and resourced independently. To run the same loop inside the API
+ * process instead, set EMBED_WORKER=true and start only `dist/server.js`.
+ */
 
-const consumer = createConsumer();
+import { closeDatabase } from './infra/db.ts';
+import { startNoteFlushWorker, stopNoteFlushWorker } from './workers/note-flush.ts';
 
-await consumer.connect();
-await consumer.subscribe({ topics: [env.kafkaTopic] });
+await startNoteFlushWorker();
 
-await consumer.run({
-  eachMessage: async ({ topic, partition, message }) => {
-    if (!message.value) return;
+let shuttingDown = false;
 
-    try {
-      const event = JSON.parse(message.value.toString()) as NoteEvent;
+async function shutdown(signal: string): Promise<void> {
+  if (shuttingDown) return;
+  shuttingDown = true;
 
-      if (event.type === 'note.upserted') {
-        await noteDbRepository.upsert(event.note);
-      } else {
-        await noteDbRepository.deleteById(event.id);
-      }
-    } catch (err) {
-      console.error('failed to prcess message, skipping:', err);
-    }
-
-    await consumer.commitOffsets([{ topic, partition, offset: (Number(message.offset) + 1).toString() }]);
-  }
-})
-
-async function shutdown(signal: string) {
   console.log(`${signal} received, stopping consumer...`);
-  await consumer.disconnect();   // leaves the group cleanly
-  await closeDatabase();
+
+  try {
+    await stopNoteFlushWorker();
+    await closeDatabase();
+  } catch (err) {
+    console.error('Error during shutdown:', err);
+    process.exit(1);
+  }
+
+  console.log('Worker closed cleanly');
   process.exit(0);
 }
+
 process.on('SIGTERM', () => void shutdown('SIGTERM'));
 process.on('SIGINT', () => void shutdown('SIGINT'));

@@ -1,0 +1,44 @@
+# Postgres, Redis and Kafka are external (Neon / self-hosted), so only the two
+# application processes live here. Both run the same image with a different
+# command.
+#
+#   docker compose up -d --build
+#   docker compose run --rm migrate       # apply migrations
+#   docker compose logs -f worker
+#   docker compose down
+
+services:
+  api:
+    build: .
+    image: wb-note:latest
+    env_file: .env
+    ports:
+      - '3000:3000'
+    restart: unless-stopped
+    # Longer than SHUTDOWN_TIMEOUT_MS so the app's own force-exit path wins
+    # rather than racing Docker's SIGKILL. Keep this the larger of the two.
+    stop_grace_period: 30s
+
+  worker:
+    build: .
+    image: wb-note:latest
+    command: ['node', 'dist/worker.js']
+    env_file: .env
+    restart: unless-stopped
+    # The image's HEALTHCHECK probes HTTP; the worker serves none and would sit
+    # permanently unhealthy.
+    healthcheck:
+      disable: true
+    # A consumer-group rebalance must finish inside this window, so keep it
+    # comfortably above the consumer's sessionTimeout.
+    stop_grace_period: 30s
+
+  # One-shot. Not started by `up` — run it explicitly before deploying a schema
+  # change. Never migrate on app boot: replicas would race each other.
+  migrate:
+    build: .
+    image: wb-note:latest
+    command: ['node', 'dist/infra/migrate.js']
+    env_file: .env
+    profiles: ['tools']
+    restart: 'no'

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>wb-note</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <aside id="sidebar">
+      <div class="sidebar-head">
+        <h1>Notes</h1>
+        <button id="new-note" title="New note">+</button>
+      </div>
+      <ul id="note-list"></ul>
+      <p id="list-empty" class="muted">No notes yet.</p>
+    </aside>
+
+    <main>
+      <header id="toolbar" hidden>
+        <input
+          id="title-input"
+          type="text"
+          maxlength="200"
+          placeholder="Untitled"
+          autocomplete="off"
+        />
+        <div class="actions">
+          <button id="toggle-edit">Edit</button>
+          <button id="save" disabled>Save</button>
+          <button id="delete" class="danger">Delete</button>
+        </div>
+      </header>
+
+      <section id="empty-state">
+        <p class="muted">Select a note, or create one with <strong>+</strong>.</p>
+      </section>
+
+      <article id="rendered" hidden></article>
+      <textarea id="editor" hidden spellcheck="false" placeholder="# Write markdown here"></textarea>
+    </main>
+
+    <div id="toast" hidden></div>
+
+    <!--
+      Loaded from a CDN with Subresource Integrity: `integrity` makes the browser
+      hash the file and refuse to execute it on mismatch, and `crossorigin` is
+      required or the check is skipped silently. Versions are pinned exactly — a
+      range breaks SRI, since a hash matches exactly one build.
+
+      DOMPurify must load before app.js. It is the only thing between a note's
+      markdown and script execution in this page.
+    -->
+    <script
+      src="https://cdn.jsdelivr.net/npm/dompurify@3.4.12/dist/purify.min.js"
+      integrity="sha384-piCcpDdJ7qVeK4Tv8Z6Hpcr3ZBIgP16TxQTPVfsLFdZ5uDgwc3Y8Ho7oUnqf12qu"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/marked@18.0.7/lib/marked.umd.js"
+      integrity="sha384-7njNzKcJUBdezPGfqUrIFizi2QkXJH0M6wF3o1h9GE/nce6X4YdecMwh31B19yTi"
+      crossorigin="anonymous"
+    ></script>
+    <script src="/app.js"></script>
+  </body>
+</html>

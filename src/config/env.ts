@@ -32,13 +32,20 @@ function int(name: string, fallback: number, min: number, max: number): number {
   return parsed;
 }
 
+function bool(name: string, fallback: boolean): boolean {
+  const raw = process.env[name];
+  if (raw === undefined || raw === '') return fallback;
+  if (raw === 'true' || raw === '1') return true;
+  if (raw === 'false' || raw === '0') return false;
+  throw new Error(`Environment variable ${name} must be true/false, got: ${raw}`);
+}
+
 const nodeEnv = str('NODE_ENV', 'development') as NodeEnv;
 
 export const env = {
   nodeEnv,
   isProduction: nodeEnv === 'production',
   port: int('PORT', 3000, 1, 65535),
-  /** How long to let in-flight requests finish before forcing exit. */
   shutdownTimeoutMs: int('SHUTDOWN_TIMEOUT_MS', 10_000, 0, 120_000),
 
   databaseUrl: required('DATABASE_URL'),
@@ -46,6 +53,7 @@ export const env = {
   kafkaBrokers: required('KAFKA_BROKERS').split(','),
   kafkaTopic: str('KAFKA_TOPIC', 'notes-event'),
   kafkaGroupId: str('KAFKA_GROUP_ID', 'notes-flush-worker'),
+  embedWorker: bool('EMBED_WORKER', true),
 
 } as const;
 

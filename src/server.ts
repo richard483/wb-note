@@ -5,6 +5,7 @@ import { connectProducer, disconnectProducer } from './infra/kafka.ts';
 import { closeRedis, connectRedis } from './infra/redis.ts';
 import { noteCacheRepository } from './repositories/note.cache.repository.ts';
 import { noteDbRepository } from './repositories/note.db.repository.ts';
+import { startNoteFlushWorker, stopNoteFlushWorker } from './workers/note-flush.ts';
 
 const app = createApp();
 
@@ -14,6 +15,13 @@ await connectProducer();
 if (!(await noteCacheRepository.isReady())) {
   console.log('Cache not ready, rehydrating from database...');
   await noteCacheRepository.rehydrate(await noteDbRepository.findAll());
+}
+
+// Single-pod deployment: run the flush consumer here instead of as its own
+// Deployment. Left off by default — separate processes scale independently and
+// a crash in one doesn't take the other with it.
+if (env.embedWorker) {
+  await startNoteFlushWorker();
 }
 
 const server = app.listen(env.port, () => {
@@ -36,10 +44,12 @@ function shutdown(signal: string): void {
     }
 
     try {
+      // Stop consuming first: leaving the group cleanly while Postgres is still
+      // reachable lets the in-flight batch finish and commit.
+      await stopNoteFlushWorker();
       await disconnectProducer();
       await closeRedis();
       await closeDatabase();
-
     } catch (err) {
       console.error('Error during shutdown:', err);
       process.exit(1);
