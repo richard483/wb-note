@@ -49,6 +49,8 @@ export const env = {
   shutdownTimeoutMs: int('SHUTDOWN_TIMEOUT_MS', 10_000, 0, 120_000),
 
   databaseUrl: required('DATABASE_URL'),
+  /** TLS to Postgres. Only turn off for a local, non-TLS database. */
+  databaseSsl: bool('DATABASE_SSL', true),
   redisUrl: required('REDIS_URL'),
   kafkaBrokers: required('KAFKA_BROKERS').split(','),
   kafkaTopic: str('KAFKA_TOPIC', 'notes-event'),

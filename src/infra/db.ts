@@ -5,6 +5,7 @@ import * as schema from "./schema.ts";
 
 export const pool = new Pool({
   connectionString: env.databaseUrl,
+  ...(env.databaseSsl ? { ssl: { rejectUnauthorized: true } } : {}),
   max: 10,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000,

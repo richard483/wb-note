@@ -29,26 +29,50 @@ export async function startNoteFlushWorker(): Promise<void> {
       eachMessage: async ({ topic, partition, message }) => {
         if (!message.value) return;
 
-        try {
-          const event = JSON.parse(message.value.toString()) as NoteEvent;
+        // Offsets mean "next message to read", hence +1.
+        const commit = () =>
+          c.commitOffsets([
+            { topic, partition, offset: (Number(message.offset) + 1).toString() },
+          ]);
 
+        let event: NoteEvent;
+        try {
+          event = JSON.parse(message.value.toString()) as NoteEvent;
+        } catch (err) {
+          // Genuinely unprocessable — retrying can never help, so commit past
+          // it. This is the ONLY case where skipping is correct.
+          console.error('skipping unparseable message', {
+            topic,
+            partition,
+            offset: message.offset,
+            err,
+          });
+          await commit();
+          return;
+        }
+
+        try {
           if (event.type === 'note.upserted') {
             await noteDbRepository.upsert(event.note);
           } else {
             await noteDbRepository.deleteById(event.id);
           }
         } catch (err) {
-          // Skip poison messages: without this, a message that always throws
-          // never commits and redelivers forever. Note this also swallows
-          // transient DB outages — revisit with a dead-letter topic.
-          console.error('failed to process message, skipping:', err);
+          // A write failure is almost always transient or misconfiguration
+          // (DB down, TLS wrong, credentials rotated) — the message is fine.
+          // Committing here would silently discard a real change, so instead
+          // die without committing: the pod restarts and redelivery resumes
+          // from the last committed offset, losing nothing.
+          console.error('database write failed, exiting to force redelivery', {
+            topic,
+            partition,
+            offset: message.offset,
+            err,
+          });
+          process.exit(1);
         }
 
-        // Offsets mean "next message to read", hence +1. Committed only after
-        // the write, so a crash replays rather than loses.
-        await c.commitOffsets([
-          { topic, partition, offset: (Number(message.offset) + 1).toString() },
-        ]);
+        await commit();
       },
     });
 
