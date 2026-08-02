@@ -14,8 +14,26 @@ export const noteCacheRepository = {
   async list(): Promise<Note[]> {
     const ids = await redis.zRange(INDEX_KEY, 0, -1, { REV: true });
     if (ids.length === 0) return [];
+
     const raws = await redis.mGet(ids.map(noteKey));
-    return raws.filter((r) => r !== null).map((r) => JSON.parse(r) as Note);
+
+    const notes: Note[] = [];
+    const orphans: string[] = [];
+
+    ids.forEach((id, index) => {
+      const raw = raws[index];
+      if (raw == null) {
+        orphans.push(id);
+      } else {
+        notes.push(JSON.parse(raw) as Note);
+      }
+    })
+
+    if (orphans.length > 0) {
+      await redis.zRem(INDEX_KEY, orphans);
+    }
+
+    return notes;
   },
 
   async save(note: Note): Promise<void> {

@@ -46,7 +46,6 @@ export const env = {
   kafkaBrokers: required('KAFKA_BROKERS').split(','),
   kafkaTopic: str('KAFKA_TOPIC', 'notes-event'),
   kafkaGroupId: str('KAFKA_GROUP_ID', 'notes-flush-worker'),
-  noteCacheTtlMs: int('NOTE_CACHE_TTL_MS', 60_000, 0, 3_600_000),
 
 } as const;
 

@@ -1,11 +1,18 @@
 import { createApp } from './app.ts';
 import { env } from './config/env.ts';
+import { closeDatabase } from './infra/db.ts';
+import { connectProducer, disconnectProducer } from './infra/kafka.ts';
+import { closeRedis, connectRedis } from './infra/redis.ts';
 import { noteCacheRepository } from './repositories/note.cache.repository.ts';
 import { noteDbRepository } from './repositories/note.db.repository.ts';
 
 const app = createApp();
 
+await connectRedis();
+await connectProducer();
+
 if (!(await noteCacheRepository.isReady())) {
+  console.log('Cache not ready, rehydrating from database...');
   await noteCacheRepository.rehydrate(await noteDbRepository.findAll());
 }
 
@@ -20,13 +27,25 @@ function shutdown(signal: string): void {
   shuttingDown = true;
 
   console.log(`${signal} received, shutting down...`);
-  server.close((err) => {
+
+  server.close(async (err) => {
     clearInterval(sweepIdle);
     if (err) {
       console.error('Error during shutdown:', err);
       process.exit(1);
     }
-    console.log('Closed cleanly');
+
+    try {
+      await disconnectProducer();
+      await closeRedis();
+      await closeDatabase();
+
+    } catch (err) {
+      console.error('Error during shutdown:', err);
+      process.exit(1);
+    }
+
+    console.log('Shutdown graciously completed, exiting.');
     process.exit(0);
   });
   server.closeIdleConnections();

@@ -2,6 +2,7 @@ import { env } from "../config/env.ts";
 import { producer } from "../infra/kafka.ts";
 import type { Note } from "../models/note.ts";
 import { noteCacheRepository as cache } from './note.cache.repository.ts';
+import { noteMemoryRepository } from "./note.memory.repository.ts";
 
 export type NoteEvent =
   | { type: 'note.upserted'; note: Note }
@@ -19,7 +20,7 @@ async function publish(event: NoteEvent, key: string): Promise<void> {
   });
 }
 
-export const noteRepository = {
+export const noteDbCacheRepository = {
   async findAll(): Promise<Note[]> {
     return cache.list();
   },
@@ -44,5 +45,6 @@ export const noteRepository = {
   },
 };
 
+export const noteRepository = env.nodeEnv === 'test' ? noteMemoryRepository : noteDbCacheRepository;
 
 export type NoteRepository = typeof noteRepository;

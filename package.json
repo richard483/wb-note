@@ -16,7 +16,9 @@
     "typecheck": "tsc --noEmit",
     "test": "node --env-file-if-exists=.env.test --test",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "node --env-file-if-exists=.env src/infra/migrate.ts"
+    "db:migrate": "node --env-file-if-exists=.env src/infra/migrate.ts",
+    "worker": "node --env-file-if-exists=.env --watch src/worker.ts",
+    "start:worker": "node dist/worker.js"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",

@@ -7,7 +7,6 @@ export const redis = createClient({
 
 redis.on("error", (err) => {
   console.error("Unexpected error on redis client", err);
-  process.exit(-1);
 });
 
 export async function pingRedis(): Promise<void> {
@@ -20,8 +19,4 @@ export async function closeRedis(): Promise<void> {
 
 export async function connectRedis(): Promise<void> {
   await redis.connect();
-}
-
-export async function disconnectRedis(): Promise<void> {
-  redis.destroy();
 }

@@ -12,8 +12,8 @@ const kafka = new Kafka({
 
 export const producer = kafka.producer({
   kafkaJS: {
-    acks: -1, // Wait for all in-sync replicas to acknowledge the message
-    idempotent: true, // Enable idempotent producer to avoid duplicate messages
+    acks: -1,
+    idempotent: true,
   }
 });
 
@@ -21,9 +21,9 @@ export function createConsumer() {
   return kafka.consumer({
     kafkaJS: {
       groupId: env.kafkaGroupId,
-      autoCommit: false, // Disable auto-commit to control when offsets are committed
-      fromBeginning: false, // Start consuming from the latest offset
-      sessionTimeout: 30000, // Set session timeout to 30 seconds
+      autoCommit: false,
+      fromBeginning: false,
+      sessionTimeout: 6000,
     }
   });
 }
